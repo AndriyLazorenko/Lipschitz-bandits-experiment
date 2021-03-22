@@ -1,3 +1,5 @@
+from time import sleep
+
 import numpy as np
 import abc
 
@@ -22,7 +24,7 @@ class Algorithm(metaclass=abc.ABCMeta):  # abstract class of `Algorithm`
         pass
 
     @abc.abstractmethod
-    def observe(self, t, y):
+    def observe(self, timestep: int, reward: float):
         pass
 
     def get_uncovered(self):
@@ -52,7 +54,7 @@ class Zooming(Algorithm):
         self.n = []
         self.r = []
 
-    def output(self):
+    def output(self) -> int:
         uncovered = self.get_uncovered()
         if uncovered is None:
             score = [mu + 2 * r for mu, r in zip(self.mu, self.r)]
@@ -66,12 +68,15 @@ class Zooming(Algorithm):
             self.pulled_idx = len(self.active_arms) - 1
         return self.pulled_idx
 
-    def observe(self, t, y):
+    def observe(self, timestep: int, reward: float):
         idx = self.pulled_idx
-        self.mu[idx] = (self.mu[idx] * self.n[idx] + y) / (self.n[idx] + 1)
+        self.mu[idx] = (self.mu[idx] * self.n[idx] + reward) / (self.n[idx] + 1)
         self.n[idx] += 1
         for i, n in enumerate(self.n):
-            self.r[i] = self.c * self.nu * np.power(t, 1 / 3) / np.sqrt(n)
+            self.r[i] = self.c * self.nu * np.power(timestep, 1 / 3) / np.sqrt(n)
+        # print(self.mu)
+        # print(self.pulled_idx)
+        # sleep(1)
 
 
 class ADTM(Algorithm):
@@ -100,12 +105,12 @@ class ADTM(Algorithm):
             self.pulled_idx = len(self.active_arms) - 1
         return self.pulled_idx
 
-    def observe(self, t, y):
+    def observe(self, timestep, reward):
         idx = self.pulled_idx
         threshold = np.power(self.nu * (self.n[idx] + 1) / np.log(self.T ** 2 / self.delta), 1 / (1 + self.epsilon))
-        if abs(y) > threshold:
-            y = 0
-        self.mu[idx] = (self.mu[idx] * self.n[idx] + y) / (self.n[idx] + 1)
+        if abs(reward) > threshold:
+            reward = 0
+        self.mu[idx] = (self.mu[idx] * self.n[idx] + reward) / (self.n[idx] + 1)
         self.n[idx] += 1
         self.r[idx] = self.c * 4 * np.power(self.nu, 1 / (1 + self.epsilon)) * np.power(
             np.log(self.T ** 2 / self.delta) / self.n[idx], self.epsilon / (1 + self.epsilon))
@@ -145,7 +150,7 @@ class ADMM(Algorithm):
                 self.pulled_idx = len(self.active_arms) - 1
         return self.pulled_idx
 
-    def observe(self, t, y):
+    def observe(self, timestep, reward):
         def MME(rewards):
             M = int(np.floor(8 * np.log(self.T ** 2 / self.delta) + 1))
             B = int(np.floor(len(rewards) / M))
@@ -155,7 +160,7 @@ class ADMM(Algorithm):
             return np.median(means)
 
         idx = self.pulled_idx
-        self.h[idx].append(y)
+        self.h[idx].append(reward)
         self.n[idx] += 1
         self.r[idx] = self.c * np.power(12 * self.sigma, 1 / (1 + self.epsilon)) * np.power(
             (16 * np.log(self.T ** 2 / self.delta) + 2) / self.n[idx], self.epsilon / (1 + self.epsilon))
