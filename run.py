@@ -1,4 +1,6 @@
 from multiprocessing import Pool
+from pprint import pprint
+
 import pandas as pd
 
 import matplotlib.pyplot as plt
@@ -20,14 +22,17 @@ class Testbed:
                  c_zooming: float = 0.01,  # searched within {1, 0.1, 0.01} and `0.01` is the best choice 0.0009
                  c_adtm: float = 0.1,  # searched within {1, 0.1, 0.01} and `0.1` is the best choice 0.009
                  c_admm: float = 0.1,  # searched within {1, 0.1, 0.01} and `0.1` is the best choice 0.1
-                 warmup_steps_bandits: int = 4,
+                 warmup_steps_bandits: int = 4,  # it is not advised to try values > 4
                  c_bayesian: int = 4,
                  search_interval: tuple = (1, 3),  # (0.33, 1)
                  stochasticity: bool = True,
                  heavy_tails: bool = False,
                  noise_modulation: float = .3,
                  reward_type: str = "triangular",
-                 img_filepath: str = None
+                 img_filepath: str = None,
+                 is_sequential_learning: bool = True,
+                 batch_size: int = 4,
+                 verbosity: int = 1
                  ):
         """
 
@@ -49,6 +54,9 @@ class Testbed:
             noise_modulation: float:
             reward_type: str: {"triangular", "quadratic", "metric-based"}
             img_filepath: str:
+            is_sequential_learning: bool:
+            batch_size: int
+            verbosity: int
         """
 
         self.time_horizon = time_horizon
@@ -61,6 +69,9 @@ class Testbed:
         self.noise_modulation = noise_modulation
         self.reward_type = reward_type
         self.img_fpath = img_filepath
+        self.is_sequential_learning = is_sequential_learning
+        self.batch_size = batch_size
+        self.verbosity = verbosity
 
         # compute upper bounds for moments of different orders
         a_hat = max(abs(-action_cost), abs(-action_cost - 0.4))
@@ -70,22 +81,22 @@ class Testbed:
                 (alpha - 1) ** 3 * (alpha - 2) * (alpha - 3)) + 3 * a_hat * sigma_second
 
         self.algorithms = [
-            Zooming(delta, time_horizon, c_zooming, nu_third),
-            ADTM(delta, time_horizon, c_adtm, nu_second, epsilon),
-            ADMM(delta, time_horizon, c_admm, sigma_second, epsilon),
-            Random(time_horizon),
-            Optimal(time_horizon, self.reward_type),
-            EpsilonGreedy(time_horizon, warmup=warmup_steps_bandits),
-            BayesianOptimization(time_horizon, warmup=c_bayesian),
-            ThompsonSampling(time_horizon),
-            UCB(time_horizon)
+            Zooming(delta, time_horizon, c_zooming, search_interval, nu_third),
+            ADTM(delta, time_horizon, c_adtm, search_interval, nu_second, epsilon),
+            ADMM(delta, time_horizon, c_admm, search_interval, sigma_second, epsilon),
+            Random(time_horizon, search_interval),
+            Optimal(time_horizon, search_interval, self.reward_type),
+            EpsilonGreedy(time_horizon, search_interval, warmup=warmup_steps_bandits),
+            # BayesianOptimization(time_horizon, search_interval, warmup=c_bayesian),
+            ThompsonSampling(time_horizon, search_interval),
+            UCB(time_horizon, search_interval)
         ]
         self.cum_reward = None
 
     def main(self):
         self.cum_reward = self.simulate()
 
-    def simulate(self, verbosity: int = 1):
+    def simulate(self):
         """
         Simulates several algorithm's performance on search for optimal arm.
         There is a separate function calculating regret and rewards.
@@ -97,16 +108,13 @@ class Testbed:
         We can only compare them based on rewards. Therefore a refactoring was applied to reflect performance
         in terms of cumulative reward (the more the merrier)
 
-        Args:
-            verbosity: int: how verbose is the algorithm
-
         Returns:
             avg_cum_regret:
 
         """
         cum_reward = np.zeros((len(self.algorithms), self.time_horizon + 1))
 
-        if verbosity > 0:
+        if self.verbosity > 0:
             trial_range = tqdm(range(self.trials))
         else:
             trial_range = range(self.trials)
@@ -115,32 +123,57 @@ class Testbed:
             inst_reward = np.zeros((len(self.algorithms), self.time_horizon + 1))
             for alg in self.algorithms:
                 alg.initialize()
-
-            if verbosity > 1:
-                timestep_range = tqdm(range(1, self.time_horizon + 1))
+            if self.is_sequential_learning:
+                self.sequential_learning(inst_reward)
             else:
-                timestep_range = range(1, self.time_horizon + 1)
-
-            for timestep in timestep_range:
-                for algo_index, alg in enumerate(self.algorithms):
-                    idx = alg.get_arm_index()  # index of the arm is computed
-                    assert isinstance(idx, int) or isinstance(idx, np.int64)
-                    arm = alg.active_arms[idx]
-                    assert isinstance(arm, float)
-                    reward = self._get_reward(arm)
-                    # reward consists of constant factor less regret plus stochastic reward factor from pareto distribution
-                    reward = self.augment_reward(reward,
-                                                 self.stochasticity,
-                                                 self.alpha,
-                                                 self.action_cost,
-                                                 self.heavy_tails,
-                                                 self.noise_modulation
-                                                 )
-                    inst_reward[algo_index, timestep] = reward
-                    alg.learn(timestep, reward)  # algorithm is observing the reward and changing priors
+                self.batch_learning(inst_reward)
             cum_reward += np.cumsum(inst_reward, axis=-1)
         avg_cum_regret = cum_reward / self.trials
         return avg_cum_regret
+
+    @staticmethod
+    def chunks(lst: list, n: int):
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(lst), n):
+            yield lst[i:i + n]
+
+    def batch_learning(self, inst_reward):
+        batches = self.chunks(list(range(1, self.time_horizon + 1)), self.batch_size)
+        if self.verbosity > 1:
+            batches = tqdm(batches)
+        for batch in batches:
+            for algo_index, alg in enumerate(self.algorithms):
+                arms = alg.get_arms_batch(len(batch))
+                rewards = [self._get_reward(arm) for arm in arms]
+                rewards = [self.augment_reward(rew,
+                                               self.stochasticity,
+                                               self.alpha,
+                                               self.action_cost,
+                                               self.heavy_tails,
+                                               self.noise_modulation) for rew in rewards]
+                for ind, timestep in enumerate(batch):
+                    inst_reward[algo_index, timestep] = rewards[ind]
+                alg.batch_learn(actions=arms, timesteps=batch, rewards=rewards)
+
+    def sequential_learning(self, inst_reward):
+        if self.verbosity > 1:
+            timestep_range = tqdm(range(1, self.time_horizon + 1))
+        else:
+            timestep_range = range(1, self.time_horizon + 1)
+        for timestep in timestep_range:
+            for algo_index, alg in enumerate(self.algorithms):
+                arm = alg.get_arm_value()
+                reward = self._get_reward(arm)
+                # reward consists of constant factor less regret plus stochastic reward factor from pareto distribution
+                reward = self.augment_reward(reward,
+                                             self.stochasticity,
+                                             self.alpha,
+                                             self.action_cost,
+                                             self.heavy_tails,
+                                             self.noise_modulation
+                                             )
+                inst_reward[algo_index, timestep] = reward
+                alg.learn(arm, timestep, reward)  # algorithm is observing the reward and changing priors
 
     @staticmethod
     def augment_reward(reward: float,
@@ -164,7 +197,6 @@ class Testbed:
             reward: float
 
         """
-        stochastic_factor = 0
         if stochasticity:
             if heavy_tails:
                 stochastic_factor = pareto.rvs(alpha) - alpha / (alpha - 1)
@@ -269,6 +301,7 @@ def _run_experiment(params: dict):
     Returns:
 
     """
+    print(params)
     tb = Testbed(**params)
     tb.main()
     tb.plot()
@@ -286,7 +319,7 @@ def _add_fpath(params: dict):
     stochasticity = "stochasticity_on" if params['stochasticity'] else "stochasticity_off"
     heavy_tails = "heavy_tails" if params['heavy_tails'] else f"{params['noise_modulation'] * 100}%noise"
     heavy_tails = "_" + heavy_tails if params['stochasticity'] else ""
-    fname = f'resources/cum_reward_{params["trials"]}_{-params["action_cost"]}_{params["time_horizon"]}_{params["reward_type"]}_{stochasticity}{heavy_tails}.png'
+    fname = f'resources/cum_reward_{params["search_interval"]}_{params["trials"]}_{-params["action_cost"]}_{params["time_horizon"]}_{params["reward_type"]}_{stochasticity}{heavy_tails}.png'
     params['img_filepath'] = fname
 
 
@@ -309,45 +342,53 @@ def run_all():
                     'heavy_tails': False,
                     'noise_modulation': .25,
                     'trials': 100,
-                    'num_cores': 2}
+                    'num_cores': 2,
+                    'search_interval': (-10., 10.),
+                    'is_sequential_learning': False,
+                    'batch_size': 4,
+                    'verbosity': 1
+                    }
 
     num_cores = exp_template.pop('num_cores')
 
     experiments = list()
-    for rew_type in {"quadratic", "triangular"}:
+    for search_interval in [(-10., 10.), (1., 3.), (0.3, 1.), (0., 1.)]:
         exp = exp_template.copy()
-        exp['reward_type'] = rew_type
-        if rew_type == 'triangular':
-            exp['c_admm'] = .009
-            exp['c_adtm'] = .009
-            exp['c_zooming'] = .0009
-        else:
-            exp['c_zooming'] = .003
-            exp['c_admm'] = .09
-            exp['c_adtm'] = .06
-        for stochasticity in {True, False}:
+        exp['search_interval'] = search_interval
+        assert exp['search_interval'] == search_interval
+        for rew_type in {"quadratic", "triangular"}:
             exp = exp.copy()
-            exp['stochasticity'] = stochasticity
-            if stochasticity:
-                for is_heavy_tail in {True, False}:
-                    exp = exp.copy()
-                    exp['heavy_tails'] = is_heavy_tail
-                    if not is_heavy_tail:
-                        for noise_modulation in {.5, .25}:
-                            exp = exp.copy()
-                            exp['noise_modulation'] = noise_modulation
+            exp['reward_type'] = rew_type
+            if rew_type == 'triangular':
+                exp['c_admm'] = .009
+                exp['c_adtm'] = .009
+                exp['c_zooming'] = .0009
+            else:
+                exp['c_zooming'] = .003
+                exp['c_admm'] = .09
+                exp['c_adtm'] = .06
+            for stochasticity in {True, False}:
+                exp = exp.copy()
+                exp['stochasticity'] = stochasticity
+                if stochasticity:
+                    for is_heavy_tail in {True, False}:
+                        exp = exp.copy()
+                        exp['heavy_tails'] = is_heavy_tail
+                        if not is_heavy_tail:
+                            for noise_modulation in {.5, .25}:
+                                exp = exp.copy()
+                                exp['noise_modulation'] = noise_modulation
+                                _add_fpath(exp)
+                                experiments.append(exp)
+                        else:
+                            if exp['reward_type'] == 'quadratic':
+                                exp['c_admm'] = .03
+                                exp['c_adtm'] = .1
                             _add_fpath(exp)
                             experiments.append(exp)
-                    else:
-                        if exp['reward_type'] == 'quadratic':
-                            exp['c_admm'] = .03
-                            exp['c_adtm'] = .1
-                        _add_fpath(exp)
-                        experiments.append(exp)
-
-            else:
-                _add_fpath(exp)
-                experiments.append(exp)
+                else:
+                    _add_fpath(exp)
+                    experiments.append(exp)
 
     df = pd.DataFrame(experiments)
     df.to_csv("resources/experiments.csv", index=False)
@@ -363,21 +404,27 @@ def run_one():
 
     Returns:
     """
-    experiment = {'action_cost': 0,
-                  'stochasticity': True,
-                  'time_horizon': 60,
-                  'c_zooming': .0009,
-                  'c_admm': .009,
-                  'c_adtm': .009,
-                  'warmup_steps_bandits': 4,
-                  'reward_type': "triangular",
-                  'heavy_tails': True,
-                  'noise_modulation': .25,
-                  'trials': 4}
+    experiment = {
+        'action_cost': 0,
+        'stochasticity': False,
+        'time_horizon': 60,
+        'c_zooming': .0009,
+        'c_admm': .009,
+        'c_adtm': .009,
+        'warmup_steps_bandits': 4,
+        'reward_type': "quadratic",
+        'heavy_tails': True,
+        'noise_modulation': .25,
+        'trials': 1,
+        'search_interval': (-10., 10.),
+        'is_sequential_learning': False,
+        'batch_size': 4,
+        'verbosity': 2
+    }
     _add_fpath(experiment)
     _run_experiment(experiment)
 
 
 if __name__ == '__main__':
-    run_all()
-    # run_one()
+    # run_all()
+    run_one()

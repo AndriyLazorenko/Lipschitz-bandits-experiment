@@ -10,7 +10,7 @@ class BayesianSolution:
     stochasticity = True
     alpha = 3.1
     action_cost = 0
-    heavy_tails = False
+    heavy_tails = True
     noise_modulation = .50
     # true_minimum = -0.9  # 0 or -0.9
     true_minimum = 0
