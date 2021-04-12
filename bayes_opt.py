@@ -54,3 +54,4 @@ if __name__ == "__main__":
     b = BayesianSolution()
     b.plot_regret()
     b.main()
+
