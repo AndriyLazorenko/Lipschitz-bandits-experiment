@@ -7,11 +7,12 @@ from skopt import Optimizer
 
 
 class Algorithm(metaclass=abc.ABCMeta):
-    def __init__(self, T, arm_interval: tuple = (0., 1.)):
+    def __init__(self, T, batch_size: int = 4, arm_interval: tuple = (0., 1.)):
         self.T = T
         self.arm_interval = arm_interval
         self.rg = np.random.default_rng()
         self.active_arms = None
+        self.batch_size = batch_size
 
     @abc.abstractmethod
     def initialize(self):
@@ -33,12 +34,9 @@ class Algorithm(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def get_arms_batch(self, size: int) -> list:
+    def get_arms_batch(self) -> list:
         """
         A method retrieving a batch of arms based on algorithm's logic
-
-        Args:
-            size: int
 
         Returns:
             batch: list
@@ -102,8 +100,8 @@ class Algorithm(metaclass=abc.ABCMeta):
 
 
 class Random(Algorithm):
-    def __init__(self, T, arm_interval):
-        super().__init__(T, arm_interval)
+    def __init__(self, T, batch_size, arm_interval):
+        super().__init__(T, batch_size, arm_interval)
 
     def initialize(self):
         # Random algorithm doesn't initialize anything
@@ -112,8 +110,8 @@ class Random(Algorithm):
     def get_arm_value(self) -> float:
         return self.inverse_interval_scaler(self.rg.uniform())
 
-    def get_arms_batch(self, size: int) -> list:
-        return [self.get_arm_value() for _ in range(size)]
+    def get_arms_batch(self) -> list:
+        return [self.get_arm_value() for _ in range(self.batch_size)]
 
     def learn(self, action: float, timestep: int, reward: float):
         # Random algorithm doesn't learn anything
@@ -124,8 +122,8 @@ class Random(Algorithm):
 
 
 class Optimal(Algorithm):
-    def __init__(self, T, arm_interval, reward):
-        super().__init__(T, arm_interval)
+    def __init__(self, T, batch_size, arm_interval, reward):
+        super().__init__(T, batch_size, arm_interval)
         self.reward = reward
 
     def initialize(self):
@@ -139,8 +137,8 @@ class Optimal(Algorithm):
         else:
             raise NotImplementedError("Such reward doesn't have optimal algorithm implemented!")
 
-    def get_arms_batch(self, size: int) -> list:
-        return [self.get_arm_value() for _ in range(size)]
+    def get_arms_batch(self) -> list:
+        return [self.get_arm_value() for _ in range(self.batch_size)]
 
     def learn(self, action: float, timestep: int, reward: float):
         # Optimal algorithm doesn't need to learn. It knows
@@ -151,10 +149,10 @@ class Optimal(Algorithm):
 
 
 class BayesianOptimization(Algorithm):
-    def __init__(self, T, arm_interval,
+    def __init__(self, T, batch_size, arm_interval,
                  warmup: int = 4,
                  acq_func: str = "LCB"):
-        super().__init__(T, arm_interval)
+        super().__init__(T, batch_size, arm_interval)
         self.warmup = warmup + 1
         self.acq_func = acq_func
         self.opt = None
@@ -172,9 +170,9 @@ class BayesianOptimization(Algorithm):
         self.current_arm_idx = len(self.active_arms) - 1
         return self.active_arms[self.current_arm_idx]
 
-    def get_arms_batch(self, size: int) -> list:
-        assert self.warmup > size
-        batch = self.opt.ask(n_points=size)
+    def get_arms_batch(self) -> list:
+        assert self.warmup > self.batch_size
+        batch = self.opt.ask(n_points=self.batch_size)
         batch = [a[0] for a in batch]
         return batch
 
@@ -188,8 +186,8 @@ class BayesianOptimization(Algorithm):
 
 
 class Bandit(Algorithm, metaclass=ABCMeta):
-    def __init__(self, T, arm_interval):
-        super().__init__(T, arm_interval)
+    def __init__(self, T, batch_size, arm_interval):
+        super().__init__(T, batch_size, arm_interval)
         self.current_arm_idx = 0
 
     def initialize(self):
@@ -208,8 +206,8 @@ class Bandit(Algorithm, metaclass=ABCMeta):
             self.active_arms = [self.inverse_interval_scaler(n / (n_arms - 1)) for n in range(n_arms)]
         return n_arms
 
-    def get_arms_batch(self, size: int) -> list:
-        return [self.get_arm_value() for _ in range(size)]
+    def get_arms_batch(self) -> list:
+        return [self.get_arm_value() for _ in range(self.batch_size)]
 
     def batch_learn(self, actions: list, timesteps: list, rewards: list):
         for ind, action in enumerate(actions):
@@ -217,10 +215,10 @@ class Bandit(Algorithm, metaclass=ABCMeta):
 
 
 class EpsilonGreedy(Bandit):
-    def __init__(self, T, arm_interval,
+    def __init__(self, T, batch_size, arm_interval,
                  warmup: int = 4,
                  epsilon: float = 0.1):
-        super().__init__(T, arm_interval)
+        super().__init__(T, batch_size, arm_interval)
         self.warmup = warmup
         self.epsilon = epsilon
         self.map = None
@@ -247,8 +245,8 @@ class EpsilonGreedy(Bandit):
 
 
 class ThompsonSampling(Bandit):
-    def __init__(self, T, arm_interval, init_policy: str = "Random"):
-        super().__init__(T, arm_interval)
+    def __init__(self, T, batch_size, arm_interval, init_policy: str = "Random"):
+        super().__init__(T, batch_size, arm_interval)
         self.init_policy = init_policy
         self.a = None
         self.b = None
@@ -282,10 +280,10 @@ class ThompsonSampling(Bandit):
 
 
 class UCB(Bandit):
-    def __init__(self, T, arm_interval,
+    def __init__(self, T, batch_size, arm_interval,
                  c: int = 2,
                  init_policy: str = "Random"):
-        super().__init__(T, arm_interval)
+        super().__init__(T, batch_size, arm_interval)
         self.c = c
         self.init_policy = init_policy
         self.counter = 0
@@ -315,8 +313,8 @@ class UCB(Bandit):
 
 
 class ZoomingAlgorithm(Algorithm, metaclass=ABCMeta):  # abstract class of `ZoomingAlgorithm`
-    def __init__(self, delta, T, c, arm_interval):
-        super().__init__(T, arm_interval)
+    def __init__(self, T, batch_size, arm_interval, delta, c):
+        super().__init__(T, batch_size, arm_interval)
         self.delta = delta
         self.c = c
         self.pulled_idx = None
@@ -353,8 +351,8 @@ class ZoomingAlgorithm(Algorithm, metaclass=ABCMeta):  # abstract class of `Zoom
             self.r.append(0)
             self.pulled_idx = len(self.active_arms) - 1
 
-    def get_arms_batch(self, size: int) -> list:
-        return [self.get_arm_value() for _ in range(size)]
+    def get_arms_batch(self) -> list:
+        return [self.get_arm_value() for _ in range(self.batch_size)]
 
     def batch_learn(self, actions: list, timesteps: list, rewards: list):
         for ind, action in enumerate(actions):
@@ -362,8 +360,8 @@ class ZoomingAlgorithm(Algorithm, metaclass=ABCMeta):  # abstract class of `Zoom
 
 
 class Zooming(ZoomingAlgorithm):
-    def __init__(self, delta, T, c, arm_interval, nu):
-        super().__init__(delta, T, c, arm_interval)
+    def __init__(self, T, batch_size, arm_interval, delta, c, nu):
+        super().__init__(T, batch_size, arm_interval, delta, c)
         self.nu = nu
 
     def initialize(self):
@@ -388,8 +386,8 @@ class Zooming(ZoomingAlgorithm):
 
 
 class ADTM(ZoomingAlgorithm):
-    def __init__(self, delta, T, c, arm_interval, nu, epsilon):
-        super().__init__(delta, T, c, arm_interval)
+    def __init__(self, T, batch_size, arm_interval, delta, c, nu, epsilon):
+        super().__init__(T, batch_size, arm_interval, delta, c)
         self.nu = nu
         self.epsilon = epsilon
 
@@ -416,8 +414,8 @@ class ADTM(ZoomingAlgorithm):
 
 
 class ADMM(ZoomingAlgorithm):
-    def __init__(self, delta, T, c, arm_interval, sigma, epsilon):
-        super().__init__(delta, T, c, arm_interval)
+    def __init__(self, T, batch_size, arm_interval, delta, c, sigma, epsilon):
+        super().__init__(T, batch_size, arm_interval, delta, c)
         self.sigma = sigma
         self.epsilon = epsilon
         self.h = None

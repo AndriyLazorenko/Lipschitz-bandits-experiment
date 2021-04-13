@@ -51,7 +51,7 @@ pip install -r requirements.txt
 ### Implemented algorithms
 
 **Zooming family:**
-- **Zooming Bandit**
+- **Zooming**
 - **ADTM**
 - **ADMM**
 
@@ -87,3 +87,27 @@ Common methods for all algorithms:
 `timer.py` is used to annotate functions to time them
 
 `bayes_opt.py` is used in experiments with reward visualizations and bayesian optimization
+
+
+### Known bugs
+
+Several algorithms are known to underperform outside of [0,1] range.
+It is likely due to hard-coded bug in implementations of these algorithms.
+The bug facilitates hard coupling of those algorithms to [0,1] interval
+and ensures they don't work as intended outside this interval.
+
+Therefore, it is not advised to use them outside [0,1] interval.
+The list of malfunctioning algorithms:
+
+ - Thompson sampling
+ - Zooming
+ - ADTM
+ - ADMM
+
+It is therefore advised to use the following 2 algorithms in experiments
+on production:
+ - Epsilon-greedy bandit
+ - Bayesian optimization
+
+as they have shown the best performance in simulated benchmark
+and are known to work as intended both on intervals and batches.   

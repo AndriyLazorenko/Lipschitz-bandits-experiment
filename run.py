@@ -22,8 +22,8 @@ class Testbed:
                  c_zooming: float = 0.01,  # searched within {1, 0.1, 0.01} and `0.01` is the best choice 0.0009
                  c_adtm: float = 0.1,  # searched within {1, 0.1, 0.01} and `0.1` is the best choice 0.009
                  c_admm: float = 0.1,  # searched within {1, 0.1, 0.01} and `0.1` is the best choice 0.1
-                 warmup_steps_bandits: int = 4,  # it is not advised to try values > 4
-                 c_bayesian: int = 4,
+                 warmup_days_bandits: int = 4,  # it is not advised to try values > 4
+                 warmup_days_bayesian: int = 4,
                  search_interval: tuple = (1, 3),  # (0.33, 1)
                  stochasticity: bool = True,
                  heavy_tails: bool = False,
@@ -46,8 +46,8 @@ class Testbed:
             c_zooming: float:
             c_adtm: float:
             c_admm: float:
-            warmup_steps_bandits: int:
-            c_bayesian: int:
+            warmup_days_bandits: int:
+            warmup_days_bayesian: int:
             search_interval: tuple:
             stochasticity: bool:
             heavy_tails: bool:
@@ -79,17 +79,19 @@ class Testbed:
         nu_second = max(a_hat ** 2 + sigma_second, np.power(12 * np.sqrt(2), -(1 + epsilon)))
         nu_third = a_hat ** 3 + 2 * alpha * (alpha + 1) / (
                 (alpha - 1) ** 3 * (alpha - 2) * (alpha - 3)) + 3 * a_hat * sigma_second
+        warmup_steps_bandits = warmup_days_bandits if is_sequential_learning else warmup_days_bandits * batch_size
+        warmup_steps_bayesian = warmup_days_bayesian if is_sequential_learning else warmup_days_bayesian * batch_size
 
         self.algorithms = [
-            Zooming(delta, time_horizon, c_zooming, search_interval, nu_third),
-            ADTM(delta, time_horizon, c_adtm, search_interval, nu_second, epsilon),
-            ADMM(delta, time_horizon, c_admm, search_interval, sigma_second, epsilon),
-            Random(time_horizon, search_interval),
-            Optimal(time_horizon, search_interval, self.reward_type),
-            EpsilonGreedy(time_horizon, search_interval, warmup=warmup_steps_bandits),
-            # BayesianOptimization(time_horizon, search_interval, warmup=c_bayesian),
-            ThompsonSampling(time_horizon, search_interval),
-            UCB(time_horizon, search_interval)
+            # Zooming(time_horizon, self.batch_size, search_interval, delta, c_zooming, nu_third),
+            # ADTM(time_horizon, self.batch_size, search_interval, delta, c_adtm, nu_second, epsilon),
+            # ADMM(time_horizon, self.batch_size, search_interval, delta, c_admm, sigma_second, epsilon),
+            Random(time_horizon, self.batch_size, search_interval),
+            Optimal(time_horizon, self.batch_size, search_interval, self.reward_type),
+            EpsilonGreedy(time_horizon, self.batch_size, search_interval, warmup=warmup_steps_bandits),
+            BayesianOptimization(time_horizon, self.batch_size, search_interval, warmup=warmup_steps_bayesian),
+            # ThompsonSampling(time_horizon, self.batch_size, search_interval),
+            UCB(time_horizon, self.batch_size, search_interval)
         ]
         self.cum_reward = None
 
@@ -143,7 +145,7 @@ class Testbed:
             batches = tqdm(batches)
         for batch in batches:
             for algo_index, alg in enumerate(self.algorithms):
-                arms = alg.get_arms_batch(len(batch))
+                arms = alg.get_arms_batch()
                 rewards = [self._get_reward(arm) for arm in arms]
                 rewards = [self.augment_reward(rew,
                                                self.stochasticity,
@@ -337,7 +339,8 @@ def run_all():
                     'c_zooming': .0009,
                     'c_admm': .009,
                     'c_adtm': .009,
-                    'warmup_steps_bandits': 4,
+                    'warmup_days_bayesian': 1,
+                    'warmup_days_bandits': 1,
                     'reward_type': "triangular",
                     'heavy_tails': False,
                     'noise_modulation': .25,
@@ -411,12 +414,13 @@ def run_one():
         'c_zooming': .0009,
         'c_admm': .009,
         'c_adtm': .009,
-        'warmup_steps_bandits': 4,
+        'warmup_days_bandits': 1,
+        'warmup_days_bayesian': 1,
         'reward_type': "quadratic",
         'heavy_tails': True,
         'noise_modulation': .25,
         'trials': 1,
-        'search_interval': (-10., 10.),
+        'search_interval': (0, 1.),
         'is_sequential_learning': False,
         'batch_size': 4,
         'verbosity': 2
