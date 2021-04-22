@@ -1,15 +1,10 @@
-from multiprocessing import Pool
-from pprint import pprint
-
-import pandas as pd
-
 import matplotlib.pyplot as plt
 from scipy.stats import pareto
 from algorithms import *
 from tqdm import tqdm
 
 
-class Testbed:
+class Testbed3D:
 
     # configure parameters of experiments
     def __init__(self,
@@ -95,9 +90,6 @@ class Testbed:
         ]
         self.cum_reward = None
 
-    def main(self):
-        self.cum_reward = self.simulate()
-
     def simulate(self):
         """
         Simulates several algorithm's performance on search for optimal arm.
@@ -131,7 +123,7 @@ class Testbed:
                 self.batch_learning(inst_reward)
             cum_reward += np.cumsum(inst_reward, axis=-1)
         avg_cum_regret = cum_reward / self.trials
-        return avg_cum_regret
+        self.cum_reward = avg_cum_regret
 
     @staticmethod
     def chunks(lst: list, n: int):
@@ -222,8 +214,6 @@ class Testbed:
             return self.triangular_reward(arm)
         elif self.reward_type == "quadratic":
             return self.quadratic_reward(arm)
-        elif self.reward_type == "metric-based":
-            return self.metric_based_reward(arm)
         else:
             raise NotImplementedError(f"'{self.reward_type.capitalize()}' reward type is not implemented")
 
@@ -237,31 +227,6 @@ class Testbed:
         instant_regret = min(abs(np.subtract(arm, 0.4)), abs(np.subtract(arm, 0.8)))
         instant_reward = np.negative(instant_regret)
         return instant_reward
-
-    def metric_based_reward(self, arm: float):
-        # TODO: implement
-        pass
-
-    def _arm_converter(self, arm: float) -> float:
-        # TODO: finish method
-        """
-        A scaling method for arm conversion. Used to convert arms from different intervals to [0,1]
-
-        Args:
-            arm: float:
-
-        Returns:
-            arm: float:
-
-        """
-        if self.search_interval[0] != 0:
-            starting_difference = self.search_interval[0]
-            scaling_factor = self.search_interval[1] - self.search_interval[0]
-        return arm
-
-    @staticmethod
-    def harmonic_mean(a: float, b: float, c: float):
-        return 3 / (1 / a + 1 / b + 1 / c)
 
     def plot(self):
         """
@@ -292,143 +257,3 @@ class Testbed:
                     )
         plt.close()
         print("Saved!")
-
-
-def _run_experiment(params: dict):
-    """
-    Runs an experiment, plots and saves the results.
-    Args:
-        params:
-
-    Returns:
-
-    """
-    print(params)
-    tb = Testbed(**params)
-    tb.main()
-    tb.plot()
-
-
-def _add_fpath(params: dict):
-    """
-    Function adds filepath for image storing to params dictionary
-    Args:
-        params: dict:
-
-    Returns:
-
-    """
-    stochasticity = "stochasticity_on" if params['stochasticity'] else "stochasticity_off"
-    heavy_tails = "heavy_tails" if params['heavy_tails'] else f"{params['noise_modulation'] * 100}%noise"
-    heavy_tails = "_" + heavy_tails if params['stochasticity'] else ""
-    fname = f'resources/cum_reward_{params["search_interval"]}_{params["trials"]}_{-params["action_cost"]}_{params["time_horizon"]}_{params["reward_type"]}_{stochasticity}{heavy_tails}.png'
-    params['img_filepath'] = fname
-
-
-def run_all():
-    """
-    Main method that runs multiple simulated elements, determined by json lists of arguments,
-    saves parameters of each visualization along with the visualization path and stores visualizations.
-
-    Returns:
-
-    """
-    exp_template = {'action_cost': 0,
-                    'stochasticity': True,
-                    'time_horizon': 60,
-                    'c_zooming': .0009,
-                    'c_admm': .009,
-                    'c_adtm': .009,
-                    'warmup_days_bayesian': 1,
-                    'warmup_days_bandits': 1,
-                    'reward_type': "triangular",
-                    'heavy_tails': False,
-                    'noise_modulation': .25,
-                    'trials': 100,
-                    'num_cores': 2,
-                    'search_interval': (-10., 10.),
-                    'is_sequential_learning': False,
-                    'batch_size': 4,
-                    'verbosity': 1
-                    }
-
-    num_cores = exp_template.pop('num_cores')
-
-    experiments = list()
-    for search_interval in [(-10., 10.), (1., 3.), (0.3, 1.), (0., 1.)]:
-        exp = exp_template.copy()
-        exp['search_interval'] = search_interval
-        assert exp['search_interval'] == search_interval
-        for rew_type in {"quadratic", "triangular"}:
-            exp = exp.copy()
-            exp['reward_type'] = rew_type
-            if rew_type == 'triangular':
-                exp['c_admm'] = .009
-                exp['c_adtm'] = .009
-                exp['c_zooming'] = .0009
-            else:
-                exp['c_zooming'] = .003
-                exp['c_admm'] = .09
-                exp['c_adtm'] = .06
-            for stochasticity in {True, False}:
-                exp = exp.copy()
-                exp['stochasticity'] = stochasticity
-                if stochasticity:
-                    for is_heavy_tail in {True, False}:
-                        exp = exp.copy()
-                        exp['heavy_tails'] = is_heavy_tail
-                        if not is_heavy_tail:
-                            for noise_modulation in {.5, .25}:
-                                exp = exp.copy()
-                                exp['noise_modulation'] = noise_modulation
-                                _add_fpath(exp)
-                                experiments.append(exp)
-                        else:
-                            if exp['reward_type'] == 'quadratic':
-                                exp['c_admm'] = .03
-                                exp['c_adtm'] = .1
-                            _add_fpath(exp)
-                            experiments.append(exp)
-                else:
-                    _add_fpath(exp)
-                    experiments.append(exp)
-
-    df = pd.DataFrame(experiments)
-    df.to_csv("resources/experiments.csv", index=False)
-
-    with Pool(processes=num_cores) as p:
-        p.map(_run_experiment, experiments)
-
-
-def run_one():
-    """
-    Runs a single experiment according to experiment parameters present in experiment dictionary.
-    Stores an image with experiments' results into `resources` folder.
-
-    Returns:
-    """
-    experiment = {
-        'action_cost': 0,
-        'stochasticity': False,
-        'time_horizon': 60,
-        'c_zooming': .0009,
-        'c_admm': .009,
-        'c_adtm': .009,
-        'warmup_days_bandits': 1,
-        'warmup_days_bayesian': 1,
-        'reward_type': "quadratic",
-        'heavy_tails': True,
-        'noise_modulation': .25,
-        'trials': 1,
-        'search_interval': (0, 1.),
-        'is_sequential_learning': False,
-        'batch_size': 4,
-        'verbosity': 2
-    }
-    _add_fpath(experiment)
-    _run_experiment(experiment)
-
-
-if __name__ == '__main__':
-    # run_all()
-    run_one()

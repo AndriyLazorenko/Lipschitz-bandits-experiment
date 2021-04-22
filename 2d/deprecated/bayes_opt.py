@@ -2,7 +2,7 @@ import numpy as np
 from skopt import gp_minimize
 from skopt.plots import plot_regret
 
-from run import Testbed
+from testbed_2d import Testbed2D
 import matplotlib.pyplot as plt
 
 
@@ -18,13 +18,13 @@ class BayesianSolution:
     def get_regret(self, arm: list):
         arm = arm[0]
         # rew = Testbed.triangular_reward(arm)
-        rew = Testbed.quadratic_reward(arm)
-        rew = Testbed.augment_reward(rew,
-                                     stochasticity=self.stochasticity,
-                                     alpha=self.alpha,
-                                     action_cost=self.action_cost,
-                                     heavy_tails=self.heavy_tails,
-                                     noise_modulation=self.noise_modulation)
+        rew = Testbed2D.quadratic_reward(arm)
+        rew = Testbed2D.augment_reward(rew,
+                                       stochasticity=self.stochasticity,
+                                       alpha=self.alpha,
+                                       action_cost=self.action_cost,
+                                       heavy_tails=self.heavy_tails,
+                                       noise_modulation=self.noise_modulation)
         return -rew
 
     def plot_regret(self):
@@ -54,4 +54,3 @@ if __name__ == "__main__":
     b = BayesianSolution()
     b.plot_regret()
     b.main()
-

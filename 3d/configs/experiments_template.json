@@ -1,0 +1,19 @@
+{
+  "action_cost": 0,
+  "stochasticity": true,
+  "time_horizon": 60,
+  "c_zooming": 0.0009,
+  "c_admm": 0.009,
+  "c_adtm": 0.009,
+  "warmup_days_bayesian": 1,
+  "warmup_days_bandits": 1,
+  "reward_type": "triangular",
+  "heavy_tails": false,
+  "noise_modulation": 0.25,
+  "trials": 100,
+  "num_cores": 2,
+  "search_interval": [0.0, 1.0],
+  "is_sequential_learning": true,
+  "batch_size": 4,
+  "verbosity": 1
+}

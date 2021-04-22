@@ -1,6 +1,6 @@
-# Lipshitz-bandits experiments
+## Function optimization experiments
 
-### A testbed for function optimization on an interval
+### A testbed for function optimization on an interval (R1) and a testbed for function optimization in R2
 
 ### Usage
 
