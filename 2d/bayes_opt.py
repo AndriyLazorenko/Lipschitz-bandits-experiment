@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 class BayesianSolution:
-    stochasticity = True
+    stochasticity = False
     alpha = 3.1
     action_cost = 0
     heavy_tails = True
@@ -17,8 +17,8 @@ class BayesianSolution:
 
     def get_regret(self, arm: list):
         arm = arm[0]
-        # rew = Testbed.triangular_reward(arm)
-        rew = Testbed2D.quadratic_reward(arm)
+        rew = Testbed2D.triangular_reward(arm)
+        # rew = Testbed2D.quadratic_reward(arm)
         rew = Testbed2D.augment_reward(rew,
                                        stochasticity=self.stochasticity,
                                        alpha=self.alpha,

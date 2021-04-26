@@ -1,12 +1,12 @@
 import matplotlib.pyplot as plt
-from scipy.stats import pareto
 import numpy as np
 
 from tqdm import tqdm
 from algorithms.algorithms_map import get_algorithms
+from rewards_2d import Rewards2D
 
-from paths import scenario_2d
-from scenario_generator import ScenarioGenerator
+from utils.paths import scenario
+from utils.scenario_generator import ScenarioGenerator
 import pandas as pd
 
 
@@ -53,7 +53,7 @@ class Testbed2D:
             stochasticity: bool:
             heavy_tails: bool:
             noise_modulation: float:
-            reward_type: str: {"triangular", "quadratic", "metric-based"}
+            reward_type: str: {"triangular", "quadratic", "article"}
             img_filepath: str:
             is_sequential_learning: bool:
             batch_size: int
@@ -68,7 +68,6 @@ class Testbed2D:
         self.stochasticity = stochasticity
         self.heavy_tails = heavy_tails
         self.noise_modulation = noise_modulation
-        self.reward_type = reward_type
         self.img_fpath = img_filepath
         self.is_sequential_learning = is_sequential_learning
         self.batch_size = batch_size
@@ -101,7 +100,10 @@ class Testbed2D:
 
         sc = ScenarioGenerator(time_horizon)
         sc.generate_scale_persist()
-        self.df = pd.read_csv(scenario_2d)
+        df = pd.read_csv(scenario)
+
+        self.reward_type = reward_type
+        self.rewards = Rewards2D(df, reward_type)
 
     def simulate(self):
         """
@@ -131,9 +133,9 @@ class Testbed2D:
             for alg in self.algorithms:
                 alg.initialize()
             if self.is_sequential_learning:
-                self.sequential_learning(inst_reward)
+                self._sequential_learning(inst_reward)
             else:
-                self.batch_learning(inst_reward)
+                self._batch_learning(inst_reward)
             cum_reward += np.cumsum(inst_reward, axis=-1)
         avg_cum_regret = cum_reward / self.trials
         self.cum_reward = avg_cum_regret
@@ -144,7 +146,7 @@ class Testbed2D:
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
 
-    def batch_learning(self, inst_reward):
+    def _batch_learning(self, inst_reward):
         if self.reward_type == "article":
             raise NotImplementedError("Batch learning is not supported by article reward")
         batches = self.chunks(list(range(1, self.time_horizon + 1)), self.batch_size)
@@ -153,18 +155,18 @@ class Testbed2D:
         for batch in batches:
             for algo_index, alg in enumerate(self.algorithms):
                 arms = alg.get_arms_batch()
-                rewards = [self._get_reward(arm, 0) for arm in arms]
-                rewards = [self.augment_reward(rew,
-                                               self.stochasticity,
-                                               self.alpha,
-                                               self.action_cost,
-                                               self.heavy_tails,
-                                               self.noise_modulation) for rew in rewards]
+                rewards = [self.rewards.get_reward(arm, 0) for arm in arms]
+                rewards = [self.rewards.augment_reward(rew,
+                                                       self.stochasticity,
+                                                       self.alpha,
+                                                       self.action_cost,
+                                                       self.heavy_tails,
+                                                       self.noise_modulation) for rew in rewards]
                 for ind, timestep in enumerate(batch):
                     inst_reward[algo_index, timestep] = rewards[ind]
                 alg.batch_learn(actions=arms, timesteps=batch, rewards=rewards)
 
-    def sequential_learning(self, inst_reward):
+    def _sequential_learning(self, inst_reward):
         if self.verbosity > 1:
             timestep_range = tqdm(range(1, self.time_horizon + 1))
         else:
@@ -172,84 +174,17 @@ class Testbed2D:
         for timestep in timestep_range:
             for algo_index, alg in enumerate(self.algorithms):
                 arm = alg.get_arm_value()
-                reward = self._get_reward(arm, timestep)
+                reward = self.rewards.get_reward(arm, timestep)
                 # reward consists of constant factor less regret plus stochastic reward factor from pareto distribution
-                reward = self.augment_reward(reward,
-                                             self.stochasticity,
-                                             self.alpha,
-                                             self.action_cost,
-                                             self.heavy_tails,
-                                             self.noise_modulation
-                                             )
+                reward = self.rewards.augment_reward(reward,
+                                                     self.stochasticity,
+                                                     self.alpha,
+                                                     self.action_cost,
+                                                     self.heavy_tails,
+                                                     self.noise_modulation
+                                                     )
                 inst_reward[algo_index, timestep] = reward
                 alg.learn(arm, timestep, reward)  # algorithm is observing the reward and changing priors
-
-    @staticmethod
-    def augment_reward(reward: float,
-                       stochasticity: bool,
-                       alpha: float,
-                       action_cost: int,
-                       heavy_tails: bool = True,
-                       noise_modulation: float = .3
-                       ) -> float:
-        """
-        A method to augment reward
-        Args:
-            reward: float
-            stochasticity: bool:
-            alpha: float:
-            action_cost: int:
-            heavy_tails: bool:
-            noise_modulation: float:
-
-        Returns:
-            reward: float
-
-        """
-        if stochasticity:
-            if heavy_tails:
-                stochastic_factor = pareto.rvs(alpha) - alpha / (alpha - 1)
-                reward += stochastic_factor
-            else:
-                stochastic_factor = np.random.uniform(1 - noise_modulation, 1 + noise_modulation)
-                reward *= stochastic_factor
-        reward -= action_cost
-        return reward
-
-    def _get_reward(self, arm: float, timestep: int):
-        """
-        A method that routes reward calculation
-        Args:
-            arm: float:
-
-        Returns:
-
-        """
-        if self.reward_type == "triangular":
-            return self.triangular_reward(arm)
-        elif self.reward_type == "quadratic":
-            return self.quadratic_reward(arm)
-        elif self.reward_type == "article":
-            return self.article_reward(arm, timestep)
-        else:
-            raise NotImplementedError(f"'{self.reward_type.capitalize()}' reward type is not implemented")
-
-    @staticmethod
-    def quadratic_reward(arm: float) -> float:
-        return max(0.1, 0.9 - 3.2 * (0.7 - arm) ** 2)
-
-    @staticmethod
-    def triangular_reward(arm: float) -> float:
-        # custom regret function, triangular regret is selected
-        instant_regret = min(abs(np.subtract(arm, 0.4)), abs(np.subtract(arm, 0.8)))
-        instant_reward = np.negative(instant_regret)
-        return instant_reward
-
-    def article_reward(self, arm: float, timestep: int) -> float:
-        df = self.df.loc[self.df.day == timestep].copy()
-        df['bt'] = df.vt * arm
-        df['profit'] = df.apply(lambda row: row.vt - row.bt if row.bt > row.mt else 0, axis=1)
-        return df.profit.sum()
 
     def plot(self):
         """

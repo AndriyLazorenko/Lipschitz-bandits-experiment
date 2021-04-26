@@ -10,7 +10,7 @@
   "reward_type": "article",
   "heavy_tails": true,
   "noise_modulation": 0.25,
-  "trials": 1,
+  "trials": 10,
   "search_interval": [0.0, 1.0],
   "is_sequential_learning": true,
   "batch_size": 4,

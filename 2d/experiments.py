@@ -1,6 +1,6 @@
 from multiprocessing import Pool
 
-from paths import experiment_2d_config, experiments_2d_dataframe, experiments_2d_configs, resources_2d_folder
+from utils.paths import experiment_2d_config, experiments_2d_dataframe, experiments_2d_configs, resources_2d_folder
 from testbed_2d import Testbed2D
 import pandas as pd
 import json
@@ -51,7 +51,7 @@ def run_all():
     num_cores = exp_template.pop('num_cores')
 
     experiments = list()
-    for rew_type in {"quadratic", "triangular", "article"}:
+    for rew_type in {"quadratic", "triangular"}:
         exp = exp_template.copy()
         exp['reward_type'] = rew_type
         if rew_type == 'triangular':
