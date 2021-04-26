@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 import os
 
-from paths import scenario
+from utils.paths import scenario
 
 
 class ScenarioGenerator:
