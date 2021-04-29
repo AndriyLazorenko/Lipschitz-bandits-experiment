@@ -1,9 +1,9 @@
-from algorithms.random_algorithm import Random
-from algorithms.optimal_algorithm import Optimal
-from algorithms.bayesian_optimization import BayesianOptimization
-from algorithms.bandit_algorithms import UCB, ThompsonSampling, EpsilonGreedy
-from algorithms.zooming_algorithms import ADMM, ADTM, Zooming
-from algorithms.article_algorithm import Article
+from two_d.algorithms.random_algorithm import Random
+from two_d.algorithms.optimal_algorithm import Optimal
+from two_d.algorithms.bayesian_optimization import BayesianOptimization
+from two_d.algorithms.bandit_algorithms import UCB, ThompsonSampling, EpsilonGreedy
+from two_d.algorithms.zooming_algorithms import ADMM, ADTM, Zooming
+from two_d.algorithms.article_algorithm import Article
 
 import json
 from utils.paths import algorithms_2d_config

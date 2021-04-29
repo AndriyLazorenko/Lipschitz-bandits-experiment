@@ -1,4 +1,6 @@
-from algorithms.abstract_algorithm import Algorithm
+from typing import Tuple
+
+from three_d.algorithms.abstract_algorithm import Algorithm
 
 
 class Random(Algorithm):
@@ -9,8 +11,8 @@ class Random(Algorithm):
         # Random algorithm doesn't initialize anything
         pass
 
-    def get_arm_value(self) -> float:
-        return self.inverse_interval_scaler(self.rg.uniform())
+    def get_arm_value(self) -> Tuple[float, float]:
+        return self.inverse_interval_scaler((self.rg.uniform(), self.rg.uniform(0, 10)))
 
     def get_arms_batch(self) -> list:
         return [self.get_arm_value() for _ in range(self.batch_size)]

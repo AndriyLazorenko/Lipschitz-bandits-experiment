@@ -1,6 +1,5 @@
 [
   "random",
-  "optimal",
   "bayesian_optimization",
-  "article"
+  "optimal"
 ]

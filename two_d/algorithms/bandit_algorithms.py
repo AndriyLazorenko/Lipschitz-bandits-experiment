@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from algorithms.abstract_algorithm import Algorithm
+from two_d.algorithms.abstract_algorithm import Algorithm
 import numpy as np
 
 

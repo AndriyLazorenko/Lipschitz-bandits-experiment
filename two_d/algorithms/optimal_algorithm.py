@@ -1,4 +1,4 @@
-from algorithms.abstract_algorithm import Algorithm
+from two_d.algorithms.abstract_algorithm import Algorithm
 
 
 class Optimal(Algorithm):

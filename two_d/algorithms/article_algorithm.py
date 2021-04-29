@@ -1,11 +1,9 @@
 import pandas as pd
-from algorithms.abstract_algorithm import Algorithm
+from two_d.algorithms.abstract_algorithm import Algorithm
 from utils.paths import scenario
 
 
 class Article(Algorithm):
-
-    # TODO: refactor completely
     def __init__(self, T, batch_size, arm_interval):
         super().__init__(T, batch_size, arm_interval)
         self.current_arm = None

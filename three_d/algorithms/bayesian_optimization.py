@@ -1,9 +1,9 @@
-from algorithms.abstract_algorithm import Algorithm
+from three_d.algorithms.abstract_algorithm import Algorithm
 from skopt import Optimizer
+from typing import Tuple
 
 
 class BayesianOptimization(Algorithm):
-    # TODO: refactor completely
     def __init__(self, T, batch_size, arm_interval,
                  warmup: int = 4,
                  acq_func: str = "LCB"):
@@ -11,30 +11,27 @@ class BayesianOptimization(Algorithm):
         self.warmup = warmup + 1
         self.acq_func = acq_func
         self.opt = None
-        self.current_arm_idx = 0
 
     def initialize(self):
-        self.current_arm_idx = 0
-        self.active_arms = []
-        self.opt = Optimizer(dimensions=[self.arm_interval],
+        self.opt = Optimizer(dimensions=self.arm_intervals,
                              n_initial_points=self.warmup,
                              acq_func=self.acq_func)
 
-    def get_arm_value(self) -> float:
-        self.active_arms.append(self.opt.ask()[0])
-        self.current_arm_idx = len(self.active_arms) - 1
-        return self.active_arms[self.current_arm_idx]
+    def get_arm_value(self) -> Tuple:
+        current_arm = self.opt.ask()
+        assert len(current_arm) == 2
+        return current_arm
 
     def get_arms_batch(self) -> list:
         assert self.warmup > self.batch_size
         batch = self.opt.ask(n_points=self.batch_size)
-        batch = [a[0] for a in batch]
         return batch
 
-    def learn(self, action: float, timestep: int, reward: float):
-        self.opt.tell([action], -reward)
+    def learn(self, action: Tuple, timestep: int, reward: float):
+        assert len(action) == 2
+        self.opt.tell(action, -reward)
 
     def batch_learn(self, actions: list, timesteps: list, rewards: list):
         regrets = [-rew for rew in rewards]
-        actions = [[action] for action in actions]
+        assert len(actions[0]) == 2
         self.opt.tell(actions, regrets)

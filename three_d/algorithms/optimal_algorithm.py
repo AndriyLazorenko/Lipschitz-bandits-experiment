@@ -1,8 +1,9 @@
-from algorithms.abstract_algorithm import Algorithm
+from typing import Tuple
+
+from three_d.algorithms.abstract_algorithm import Algorithm
 
 
 class Optimal(Algorithm):
-    # TODO: refactor after simulation reward functions are reengineered
     def __init__(self, T, batch_size, arm_interval, reward):
         super().__init__(T, batch_size, arm_interval)
         self.reward = reward
@@ -10,13 +11,13 @@ class Optimal(Algorithm):
     def initialize(self):
         pass
 
-    def get_arm_value(self) -> float:
+    def get_arm_value(self) -> Tuple[float, float]:
         if self.reward == "triangular":
-            return 0.4
+            return 1.0, 10.0
         elif self.reward == "quadratic":
-            return 0.7
+            return 1.0, 1.0
         else:
-            raise NotImplementedError("Such reward doesn't have optimal algorithm implemented!")
+            raise NotImplementedError(f"{self.reward.capitalize()} reward doesn't have optimal algorithm implemented!")
 
     def get_arms_batch(self) -> list:
         return [self.get_arm_value() for _ in range(self.batch_size)]

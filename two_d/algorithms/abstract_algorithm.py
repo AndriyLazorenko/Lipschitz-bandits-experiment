@@ -4,9 +4,9 @@ import numpy as np
 
 
 class Algorithm(metaclass=abc.ABCMeta):
-    def __init__(self, T, batch_size: int = 4, arm_intervals: tuple = ((0., 1.), (0., 10.))):
+    def __init__(self, T, batch_size: int = 4, arm_interval: tuple = (0., 1.)):
         self.T = T
-        self.arm_intervals = arm_intervals
+        self.arm_interval = arm_interval
         self.rg = np.random.default_rng()
         self.active_arms = None
         self.batch_size = batch_size
@@ -67,43 +67,30 @@ class Algorithm(metaclass=abc.ABCMeta):
         """
         pass
 
-    def interval_scaler(self, arms: tuple) -> tuple:
+    def interval_scaler(self, arm: float) -> float:
         """
-        Transforms arms from custom intervals to [0,1] x [0, 10] interval
+        Transforms arm from custom interval to [0,1] interval
         Args:
-            arms: tuple
+            arm: float:
 
         Returns:
-            scaled_arms: tuple
+            scaled_arm: float
 
         """
-        scaled_arms = list()
-        for i in range(2):
-            arm_interval = self.arm_intervals[i]
-            interval_length = arm_interval[1] - arm_interval[0]
-            scaled_arm = (arms[i] - arm_interval[0]) / interval_length
-            if i == 1:
-                scaled_arm = scaled_arm * 10
-            scaled_arms.append(scaled_arm)
-        return tuple(scaled_arms)
+        interval_length = self.arm_interval[1] - self.arm_interval[0]
+        scaled_arm = (arm - self.arm_interval[0]) / interval_length
+        return scaled_arm
 
-    def inverse_interval_scaler(self, scaled_arms: tuple) -> tuple:
+    def inverse_interval_scaler(self, scaled_arm: float) -> float:
         """
-        Transorms arm from scaled interval [0,1] to custom interval
+        Transforms arm from scaled interval [0,1] to custom interval
         Args:
-            scaled_arms: tuple:
+            scaled_arm: float:
 
         Returns:
-            arms: tuple:
+            arm: float:
 
         """
-        arms = list()
-        for i in range(2):
-            arm_interval = self.arm_intervals[i]
-            interval_length = arm_interval[1] - arm_interval[0]
-            scaled_arm = scaled_arms[i]
-            if i == 1:
-                scaled_arm = scaled_arm / 10
-            arm = scaled_arm * interval_length + arm_interval[0]
-            arms.append(arm)
-        return tuple(arms)
+        interval_length = self.arm_interval[1] - self.arm_interval[0]
+        arm = scaled_arm * interval_length + self.arm_interval[0]
+        return arm

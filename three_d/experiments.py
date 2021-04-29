@@ -7,6 +7,10 @@ import json
 from pprint import pprint
 
 
+# TODO: launch a full-scale (10 iterations) evaluation of NLBS and bayesian optimization
+# TODO: compare LBS with NLBS and other approaches on 3d benchmark
+# TODO: refactor to separate common parts to avoid code duplication
+
 def _run_experiment(params: dict):
     """
     Runs an experiment, plots and saves the results.
@@ -16,6 +20,7 @@ def _run_experiment(params: dict):
     Returns:
 
     """
+    pprint(params)
     tb = Testbed3D(**params)
     tb.simulate()
     tb.plot()
@@ -54,14 +59,6 @@ def run_all():
     for rew_type in {"quadratic", "triangular"}:
         exp = exp_template.copy()
         exp['reward_type'] = rew_type
-        if rew_type == 'triangular':
-            exp['c_admm'] = .009
-            exp['c_adtm'] = .009
-            exp['c_zooming'] = .0009
-        else:
-            exp['c_zooming'] = .003
-            exp['c_admm'] = .09
-            exp['c_adtm'] = .06
         for stochasticity in {True, False}:
             exp = exp.copy()
             exp['stochasticity'] = stochasticity
@@ -78,9 +75,6 @@ def run_all():
                             _add_fpath(exp)
                             experiments.append(exp)
                     else:
-                        if exp['reward_type'] == 'quadratic':
-                            exp['c_admm'] = .03
-                            exp['c_adtm'] = .1
                         _add_fpath(exp)
                         experiments.append(exp)
             else:
@@ -108,5 +102,5 @@ def run_one():
 
 
 if __name__ == '__main__':
-    # run_all()
-    run_one()
+    run_all()
+    # run_one()

@@ -1,7 +1,7 @@
-from algorithms.random_algorithm import Random
-from algorithms.optimal_algorithm import Optimal
-from algorithms.bayesian_optimization import BayesianOptimization
-from algorithms.article_algorithm import Article
+from three_d.algorithms.random_algorithm import Random
+from three_d.algorithms.optimal_algorithm import Optimal
+from three_d.algorithms.bayesian_optimization import BayesianOptimization
+from three_d.algorithms.article_algorithm import Article
 
 import json
 from utils.paths import algorithms_3d_config

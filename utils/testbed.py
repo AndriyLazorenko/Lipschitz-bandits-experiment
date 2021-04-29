@@ -1,31 +1,21 @@
+import abc
 import matplotlib.pyplot as plt
 import numpy as np
 
 from tqdm import tqdm
-from algorithms.algorithms_map import get_algorithms
-from rewards_2d import Rewards2D
-
-from utils.paths import scenario
-from utils.scenario_generator import ScenarioGenerator
-import pandas as pd
+from utils.rewards import augment_reward
 
 
-class Testbed2D:
+class Testbed(metaclass=abc.ABCMeta):
 
     # configure parameters of experiments
     def __init__(self,
+                 search_interval: tuple,  # (0.33, 1)
                  time_horizon: int = 60,
                  trials: int = 40,
-                 delta: float = 0.1,
                  alpha: float = 3.1,
-                 epsilon: int = 1,
                  action_cost: int = 0,
-                 c_zooming: float = 0.01,  # searched within {1, 0.1, 0.01} and `0.01` is the best choice 0.0009
-                 c_adtm: float = 0.1,  # searched within {1, 0.1, 0.01} and `0.1` is the best choice 0.009
-                 c_admm: float = 0.1,  # searched within {1, 0.1, 0.01} and `0.1` is the best choice 0.1
-                 warmup_days_bandits: int = 4,  # it is not advised to try values > 4
                  warmup_days_bayesian: int = 4,
-                 search_interval: tuple = (0, 1),  # (0.33, 1)
                  stochasticity: bool = True,
                  heavy_tails: bool = False,
                  noise_modulation: float = .3,
@@ -40,14 +30,8 @@ class Testbed2D:
         Args:
             time_horizon: int: a time horizon of a simulated experiment
             trials: int: number of independent trials
-            delta: float:
             alpha: float: property of pareto distribution used in heavy tailed reward simulation
-            epsilon: int:
             action_cost: int: a cost associated with any action on every step, regardless of the result
-            c_zooming: float:
-            c_adtm: float:
-            c_admm: float:
-            warmup_days_bandits: int:
             warmup_days_bayesian: int:
             search_interval: tuple:
             stochasticity: bool:
@@ -73,37 +57,14 @@ class Testbed2D:
         self.batch_size = batch_size
         self.verbosity = verbosity
 
-        # compute upper bounds for moments of different orders
-        a_hat = max(abs(-action_cost), abs(-action_cost - 0.4))
-        sigma_second = max(alpha / ((alpha - 1) ** 2 * (alpha - 2)), 1 / (36 * np.sqrt(2)))
-        nu_second = max(a_hat ** 2 + sigma_second, np.power(12 * np.sqrt(2), -(1 + epsilon)))
-        nu_third = a_hat ** 3 + 2 * alpha * (alpha + 1) / (
-                (alpha - 1) ** 3 * (alpha - 2) * (alpha - 3)) + 3 * a_hat * sigma_second
-        warmup_steps_bandits = warmup_days_bandits if is_sequential_learning else warmup_days_bandits * batch_size
-        warmup_steps_bayesian = warmup_days_bayesian if is_sequential_learning else warmup_days_bayesian * batch_size
-
-        self.algorithms = get_algorithms(time_horizon=time_horizon,
-                                         batch_size=batch_size,
-                                         search_interval=search_interval,
-                                         delta=delta,
-                                         c_zooming=c_zooming,
-                                         nu_third=nu_third,
-                                         c_adtm=c_adtm,
-                                         nu_second=nu_second,
-                                         epsilon=epsilon,
-                                         c_admm=c_admm,
-                                         sigma_second=sigma_second,
-                                         reward_type=reward_type,
-                                         warmup_bandits=warmup_steps_bandits,
-                                         warmup_bayesian=warmup_steps_bayesian)
+        self.algorithms = None
         self.cum_reward = None
-
-        sc = ScenarioGenerator(time_horizon)
-        sc.generate_scale_persist()
-        df = pd.read_csv(scenario)
-
         self.reward_type = reward_type
-        self.rewards = Rewards2D(df, reward_type)
+        self.rewards = None
+
+    @abc.abstractmethod
+    def initialize_rewards(self):
+        pass
 
     def simulate(self):
         """
@@ -156,12 +117,12 @@ class Testbed2D:
             for algo_index, alg in enumerate(self.algorithms):
                 arms = alg.get_arms_batch()
                 rewards = [self.rewards.get_reward(arm, 0) for arm in arms]
-                rewards = [self.rewards.augment_reward(rew,
-                                                       self.stochasticity,
-                                                       self.alpha,
-                                                       self.action_cost,
-                                                       self.heavy_tails,
-                                                       self.noise_modulation) for rew in rewards]
+                rewards = [augment_reward(rew,
+                                          self.stochasticity,
+                                          self.alpha,
+                                          self.action_cost,
+                                          self.heavy_tails,
+                                          self.noise_modulation) for rew in rewards]
                 for ind, timestep in enumerate(batch):
                     inst_reward[algo_index, timestep] = rewards[ind]
                 alg.batch_learn(actions=arms, timesteps=batch, rewards=rewards)
@@ -176,13 +137,13 @@ class Testbed2D:
                 arm = alg.get_arm_value()
                 reward = self.rewards.get_reward(arm, timestep)
                 # reward consists of constant factor less regret plus stochastic reward factor from pareto distribution
-                reward = self.rewards.augment_reward(reward,
-                                                     self.stochasticity,
-                                                     self.alpha,
-                                                     self.action_cost,
-                                                     self.heavy_tails,
-                                                     self.noise_modulation
-                                                     )
+                reward = augment_reward(reward,
+                                        self.stochasticity,
+                                        self.alpha,
+                                        self.action_cost,
+                                        self.heavy_tails,
+                                        self.noise_modulation
+                                        )
                 inst_reward[algo_index, timestep] = reward
                 alg.learn(arm, timestep, reward)  # algorithm is observing the reward and changing priors
 
