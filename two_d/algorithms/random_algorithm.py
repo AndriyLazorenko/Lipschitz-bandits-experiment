@@ -1,7 +1,7 @@
 from two_d.algorithms.abstract_algorithm import Algorithm
 
 
-class Random(Algorithm):
+class RandomSingleParam(Algorithm):
     def __init__(self, T, batch_size, arm_interval):
         super().__init__(T, batch_size, arm_interval)
 

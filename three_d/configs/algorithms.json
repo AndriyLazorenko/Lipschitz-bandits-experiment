@@ -1,5 +1,10 @@
 [
-  "random",
-  "bayesian_optimization",
-  "optimal"
+  "random_NLBS",
+  "bayesian_optimization_NLBS",
+  "article_NLBS",
+  "random_LBS",
+  "bayesian_optimization_LBS",
+  "article_LBS",
+  "UCB",
+  "EpsilonGreedy"
 ]

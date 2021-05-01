@@ -3,7 +3,7 @@ from skopt import Optimizer
 from typing import Tuple
 
 
-class BayesianOptimization(Algorithm):
+class BayesianOptimizationDoubleParam(Algorithm):
     def __init__(self, T, batch_size, arm_interval,
                  warmup: int = 4,
                  acq_func: str = "LCB"):

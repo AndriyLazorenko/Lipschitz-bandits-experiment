@@ -1,40 +1,9 @@
 from multiprocessing import Pool
 
-from utils.paths import experiment_2d_config, experiments_2d_dataframe, experiments_2d_configs, resources_2d_folder
-from testbed_2d import Testbed2D
+from utils.experiments import add_fpath, run_experiment
+from utils.paths import experiments_2d_dataframe, experiments_2d_configs
 import pandas as pd
 import json
-from pprint import pprint
-
-
-def _run_experiment(params: dict):
-    """
-    Runs an experiment, plots and saves the results.
-    Args:
-        params:
-
-    Returns:
-
-    """
-    tb = Testbed2D(**params)
-    tb.simulate()
-    tb.plot()
-
-
-def _add_fpath(params: dict):
-    """
-    Function adds filepath for image storing to params dictionary
-    Args:
-        params: dict:
-
-    Returns:
-
-    """
-    stochasticity = "stochasticity_on" if params['stochasticity'] else "stochasticity_off"
-    heavy_tails = "heavy_tails" if params['heavy_tails'] else f"{params['noise_modulation'] * 100}%noise"
-    heavy_tails = "_" + heavy_tails if params['stochasticity'] else ""
-    fname = f'{resources_2d_folder}cum_reward_{params["search_interval"]}_{params["trials"]}_{-params["action_cost"]}_{params["time_horizon"]}_{params["reward_type"]}_{stochasticity}{heavy_tails}.png'
-    params['img_filepath'] = fname
 
 
 def run_all():
@@ -75,38 +44,24 @@ def run_all():
                         for noise_modulation in {.5, .25}:
                             exp = exp.copy()
                             exp['noise_modulation'] = noise_modulation
-                            _add_fpath(exp)
+                            add_fpath(exp)
                             experiments.append(exp)
                     else:
                         if exp['reward_type'] == 'quadratic':
                             exp['c_admm'] = .03
                             exp['c_adtm'] = .1
-                        _add_fpath(exp)
+                        add_fpath(exp)
                         experiments.append(exp)
             else:
-                _add_fpath(exp)
+                add_fpath(exp)
                 experiments.append(exp)
 
     df = pd.DataFrame(experiments)
     df.to_csv(experiments_2d_dataframe, index=False)
 
     with Pool(processes=num_cores) as p:
-        p.map(_run_experiment, experiments)
-
-
-def run_one():
-    """
-    Runs a single experiment according to experiment parameters present in experiment dictionary.
-    Stores an image with experiments' results into `resources` folder.
-
-    Returns:
-    """
-    with open(experiment_2d_config) as json_file:
-        experiment = json.load(json_file)
-    _add_fpath(experiment)
-    _run_experiment(experiment)
+        p.map(run_experiment, experiments)
 
 
 if __name__ == '__main__':
-    # run_all()
-    run_one()
+    run_all()

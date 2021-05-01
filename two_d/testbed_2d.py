@@ -1,9 +1,9 @@
 import numpy as np
 
-from algorithms.algorithms_map import get_algorithms
-from rewards_2d import Rewards2D
+from two_d.algorithms.algorithms_map import get_algorithms
 
 from utils.paths import scenario
+from utils.rewards import Rewards
 from utils.scenario_generator import ScenarioGenerator
 import pandas as pd
 
@@ -77,4 +77,4 @@ class Testbed2D(Testbed):
         sc = ScenarioGenerator(self.time_horizon)
         sc.generate_scale_persist()
         df = pd.read_csv(scenario)
-        self.rewards = Rewards2D(df, self.reward_type)
+        self.rewards = Rewards(df, self.reward_type)

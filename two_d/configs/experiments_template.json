@@ -15,5 +15,6 @@
   "search_interval": [0.0, 1.0],
   "is_sequential_learning": true,
   "batch_size": 4,
-  "verbosity": 1
+  "verbosity": 1,
+  "dimension": 2
 }

@@ -1,9 +1,9 @@
-from two_d.algorithms.random_algorithm import Random
+from two_d.algorithms.random_algorithm import RandomSingleParam
 from two_d.algorithms.optimal_algorithm import Optimal
-from two_d.algorithms.bayesian_optimization import BayesianOptimization
+from two_d.algorithms.bayesian_optimization import BayesianOptimizationSingleParam
 from two_d.algorithms.bandit_algorithms import UCB, ThompsonSampling, EpsilonGreedy
 from two_d.algorithms.zooming_algorithms import ADMM, ADTM, Zooming
-from two_d.algorithms.article_algorithm import Article
+from two_d.algorithms.article_algorithm import LBS
 
 import json
 from utils.paths import algorithms_2d_config
@@ -24,7 +24,6 @@ def get_algorithms(time_horizon: int,
                    warmup_bandits: int,
                    warmup_bayesian: int
                    ) -> list:
-
     with open(algorithms_2d_config) as json_file:
         algorithms = json.load(json_file)
 
@@ -32,14 +31,14 @@ def get_algorithms(time_horizon: int,
         "zooming": Zooming(time_horizon, batch_size, search_interval, delta, c_zooming, nu_third),
         "adtm": ADTM(time_horizon, batch_size, search_interval, delta, c_adtm, nu_second, epsilon),
         "admm": ADMM(time_horizon, batch_size, search_interval, delta, c_admm, sigma_second, epsilon),
-        "random": Random(time_horizon, batch_size, search_interval),
+        "random": RandomSingleParam(time_horizon, batch_size, search_interval),
         "optimal": Optimal(time_horizon, batch_size, search_interval, reward_type),
         "epsilon_greedy": EpsilonGreedy(time_horizon, batch_size, search_interval, warmup=warmup_bandits),
-        "bayesian_optimization": BayesianOptimization(time_horizon, batch_size, search_interval,
-                                                      warmup=warmup_bayesian),
+        "bayesian_optimization": BayesianOptimizationSingleParam(time_horizon, batch_size, search_interval,
+                                                                 warmup=warmup_bayesian),
         "thompson_sampling": ThompsonSampling(time_horizon, batch_size, search_interval),
         "ucb": UCB(time_horizon, batch_size, search_interval),
-        "article": Article(time_horizon, batch_size, search_interval)
+        "article": LBS(time_horizon, batch_size, search_interval)
     }
     for_ret = list()
     for algo in algorithms:

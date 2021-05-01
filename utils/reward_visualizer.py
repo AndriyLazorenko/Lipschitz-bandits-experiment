@@ -1,7 +1,5 @@
 import numpy as np
-from rewards import augment_reward
-from two_d.rewards_2d import Rewards2D
-from three_d.rewards_3d import Rewards3D
+from rewards import augment_reward, Rewards
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import pandas as pd
@@ -35,13 +33,13 @@ class RewardVisualizer:
     def get_reward(self, arm) -> float:
         rew = None
         if self.reward_type == "triangular" and self.dimension == 2:
-            rew = Rewards2D.triangular_reward(arm)
+            rew = Rewards.triangular_reward(arm)
         elif self.reward_type == "quadratic" and self.dimension == 2:
-            rew = Rewards2D.quadratic_reward(arm)
+            rew = Rewards.quadratic_reward(arm)
         elif self.reward_type == "triangular" and self.dimension == 3:
-            rew = Rewards3D.triangular_reward(arm)
+            rew = Rewards.bukin_reward(arm)
         elif self.reward_type == "quadratic" and self.dimension == 3:
-            rew = Rewards3D.quadratic_reward(arm)
+            rew = Rewards.rosenbrock_reward(arm)
         return rew
 
     def get_augmented_reward(self, arm: list):
@@ -66,15 +64,17 @@ class RewardVisualizer:
             x = np.linspace(-1, 1, 400)
             y = np.linspace(-5, 10, 400)
             x, y = np.meshgrid(x, y)
+            x = x.reshape(-1)
+            y = y.reshape(-1)
 
             def f(a, b):
                 return self.get_augmented_reward([a, b])
 
             z = f(x, y)
             ax = plt.axes(projection='3d')
-            ax.plot_surface(x, y, z, rstride=1, cstride=1,
-                            cmap=cm.coolwarm, edgecolor='none', antialiased=False)
-            # ax.plot_trisurf(x, y, z, cmap='viridis', linewidth=.2, antialiased=True)  # 'viridis' # plt.cm.CMRmap
+            # ax.plot_surface(x, y, z, rstride=1, cstride=1,
+            #                 cmap=cm.coolwarm, edgecolor='none', antialiased=False)
+            ax.plot_trisurf(x, y, z, cmap=cm.coolwarm, linewidth=.2, antialiased=True)  # 'viridis' # plt.cm.CMRmap
         plt.grid()
         fname = self.compose_filename()
         plt.savefig(fname,

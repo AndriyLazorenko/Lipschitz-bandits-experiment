@@ -1,8 +1,8 @@
-from algorithms.abstract_algorithm import Algorithm
+from two_d.algorithms.abstract_algorithm import Algorithm
 from skopt import Optimizer
 
 
-class BayesianOptimization(Algorithm):
+class BayesianOptimizationSingleParam(Algorithm):
     def __init__(self, T, batch_size, arm_interval,
                  warmup: int = 4,
                  acq_func: str = "LCB"):
@@ -31,6 +31,7 @@ class BayesianOptimization(Algorithm):
         return batch
 
     def learn(self, action: float, timestep: int, reward: float):
+        reward = float(reward)
         self.opt.tell([action], -reward)
 
     def batch_learn(self, actions: list, timesteps: list, rewards: list):

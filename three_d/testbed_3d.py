@@ -1,10 +1,9 @@
 import pandas as pd
 
-from tqdm import tqdm
-from algorithms.algorithms_map import get_algorithms
-from rewards_3d import Rewards3D
+from three_d.algorithms.algorithms_map import get_algorithms
 
 from utils.paths import scenario
+from utils.rewards import Rewards
 from utils.scenario_generator import ScenarioGenerator
 
 from utils.testbed import Testbed
@@ -12,7 +11,7 @@ from utils.testbed import Testbed
 
 class Testbed3D(Testbed):
     def __init__(self, time_horizon: int = 60, trials: int = 40, alpha: float = 3.1, action_cost: int = 0,
-                 warmup_days_bayesian: int = 4, search_interval: tuple = ((0., 1.), (0., 10.)),
+                 warmup_days_bayesian: int = 4, search_interval: tuple = ((0., 2.), (0., 10.)), search_interval_2d: tuple = (0.0, 1.0),
                  stochasticity: bool = True, heavy_tails: bool = False, noise_modulation: float = .3,
                  reward_type: str = "triangular", img_filepath: str = None, is_sequential_learning: bool = True,
                  batch_size: int = 4, verbosity: int = 1):
@@ -44,6 +43,7 @@ class Testbed3D(Testbed):
         self.algorithms = get_algorithms(time_horizon=time_horizon,
                                          batch_size=batch_size,
                                          search_interval=search_interval,
+                                         search_interval_2d = search_interval_2d,
                                          reward_type=reward_type,
                                          warmup_bayesian=warmup_steps_bayesian)
         self.initialize_rewards()
@@ -54,7 +54,7 @@ class Testbed3D(Testbed):
         sc = ScenarioGenerator(self.time_horizon)
         sc.generate_scale_persist()
         df = pd.read_csv(scenario)
-        self.rewards = Rewards3D(df, self.reward_type)
+        self.rewards = Rewards(df, self.reward_type)
 
 
 
