@@ -6,5 +6,6 @@
   "bayesian_optimization_LBS",
   "article_LBS",
   "UCB",
-  "EpsilonGreedy"
+  "EpsilonGreedy",
+  "SEW"
 ]

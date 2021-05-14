@@ -1,4 +1,5 @@
 from three_d.algorithms.random_algorithm import RandomDoubleParam
+from three_d.algorithms.sew import SEW
 from two_d.algorithms.bandit_algorithms import UCB, EpsilonGreedy
 from two_d.algorithms.random_algorithm import RandomSingleParam
 from three_d.algorithms.optimal_algorithm import Optimal
@@ -32,7 +33,8 @@ def get_algorithms(time_horizon: int,
         "article_NLBS": NLBS(time_horizon, batch_size, search_interval),
         "article_LBS": LBS(time_horizon, batch_size, search_interval_2d),
         "UCB": UCB(time_horizon, batch_size, search_interval_2d),
-        "EpsilonGreedy": EpsilonGreedy(time_horizon, batch_size, search_interval_2d, warmup_bayesian)
+        "EpsilonGreedy": EpsilonGreedy(time_horizon, batch_size, search_interval_2d, warmup_bayesian),
+        "SEW": SEW(time_horizon)
     }
     for_ret = list()
     for algo in algorithms:

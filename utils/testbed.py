@@ -134,18 +134,28 @@ class Testbed(metaclass=abc.ABCMeta):
             timestep_range = range(1, self.time_horizon + 1)
         for timestep in timestep_range:
             for algo_index, alg in enumerate(self.algorithms):
-                arm = alg.get_arm_value()
-                reward = self.rewards.get_reward(arm, timestep)
-                # reward consists of constant factor less regret plus stochastic reward factor from pareto distribution
-                reward = augment_reward(reward,
-                                        self.stochasticity,
-                                        self.alpha,
-                                        self.action_cost,
-                                        self.heavy_tails,
-                                        self.noise_modulation
-                                        )
-                inst_reward[algo_index, timestep] = reward
-                alg.learn(arm, timestep, reward)  # algorithm is observing the reward and changing priors
+                if alg.__class__.__name__ == "SEW":
+                    self.simulate_a_day_sew(alg, algo_index, inst_reward, timestep)
+                else:
+                    self.simulate_a_day(alg, algo_index, inst_reward, timestep)
+
+    @abc.abstractmethod
+    def simulate_a_day_sew(self, alg, algo_index: int, inst_reward: np.array, day_number: int):
+        pass
+
+    def simulate_a_day(self, alg, algo_index: int, inst_reward: np.array, day_number: int):
+        arm = alg.get_arm_value()
+        reward = self.rewards.get_reward(arm, day_number)
+        # reward consists of constant factor less regret plus stochastic reward factor from pareto distribution
+        reward = augment_reward(reward,
+                                self.stochasticity,
+                                self.alpha,
+                                self.action_cost,
+                                self.heavy_tails,
+                                self.noise_modulation
+                                )
+        inst_reward[algo_index, day_number] = reward
+        alg.learn(arm, day_number, reward)  # algorithm is observing the reward and changing priors
 
     def plot(self):
         """

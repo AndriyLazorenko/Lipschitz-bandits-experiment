@@ -12,7 +12,6 @@ from utils.testbed import Testbed
 
 class Testbed2D(Testbed):
 
-    # configure parameters of experiments
     def __init__(self, time_horizon: int = 60, trials: int = 40, delta: float = 0.1, alpha: float = 3.1,
                  epsilon: int = 1, action_cost: int = 0, c_zooming: float = 0.01, c_adtm: float = 0.1,
                  c_admm: float = 0.1, warmup_days_bandits: int = 4, warmup_days_bayesian: int = 4,
@@ -73,8 +72,12 @@ class Testbed2D(Testbed):
                                          warmup_bayesian=warmup_steps_bayesian)
         self.initialize_rewards()
 
+    # configure parameters of experiments
     def initialize_rewards(self):
         sc = ScenarioGenerator(self.time_horizon)
         sc.generate_scale_persist()
         df = pd.read_csv(scenario)
         self.rewards = Rewards(df, self.reward_type)
+
+    def simulate_a_day_sew(self, alg, algo_index: int, inst_reward: np.array, day_number: int):
+        pass
