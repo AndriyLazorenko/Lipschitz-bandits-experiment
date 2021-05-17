@@ -1,3 +1,8 @@
+import sys
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.extend([os.path.join(dir_path, "..")])
+
 from three_d.testbed_3d import Testbed3D
 from two_d.testbed_2d import Testbed2D
 from pprint import pprint

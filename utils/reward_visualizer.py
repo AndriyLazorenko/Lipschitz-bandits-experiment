@@ -4,6 +4,11 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 import pandas as pd
 
+import sys
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.extend([os.path.join(dir_path, "..")])
+
 from utils.paths import reward_shapes_folder, reward_plots_info
 
 

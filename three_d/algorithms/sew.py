@@ -189,13 +189,13 @@ class SEW(Algorithm):
 
     @staticmethod
     def compute_reward(bt: float, vt: float, mt: float):  # page 6 formula 1: reward calculation
-        return (vt - bt) if bt > mt else 0
+        return (vt - bt) if mt < bt else 0
 
     # TODO: add tests
     @staticmethod
     def compute_reward_vec(bt: np.array, vt: float, mt: float) -> np.array:  # page 6 formula 1: reward calculation
         """A vectorized form of reward calculation (more time-efficient)"""
-        return (vt - bt) * (bt > mt)
+        return (vt - bt) * (mt < bt)
 
     def get_arm_value(self) -> Tuple:
         raise NotImplementedError("Arm value is not defined for SEW. Use get_action method instead")

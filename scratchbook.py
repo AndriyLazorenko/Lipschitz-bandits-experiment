@@ -208,4 +208,3 @@ pprint(R_dash)
 # print(T[1])
 
 # TODO: write overall documentation and monthly report.
-# TODO: make a complete, 10-iterations test

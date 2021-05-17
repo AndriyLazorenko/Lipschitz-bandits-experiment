@@ -2,7 +2,7 @@ import numpy as np
 from skopt import gp_minimize
 from skopt.plots import plot_regret
 
-from testbed_2d import Testbed2D
+from two_d.testbed_2d import Testbed2D
 import matplotlib.pyplot as plt
 
 

@@ -6,6 +6,9 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 import os
+import sys
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.extend([os.path.join(dir_path, "..")])
 
 from utils.paths import scenario
 
@@ -72,7 +75,7 @@ class ScenarioGenerator:
 
 if __name__ == '__main__':
     sg = ScenarioGenerator()
-    # sg.generate_n_days()
-    # sg.scale_prices()
-    # sg.persist()
+    sg.generate_n_days()
+    sg.scale_prices()
+    sg.persist()
     sg.visualize()

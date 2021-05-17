@@ -1,5 +1,10 @@
 from multiprocessing import Pool
 
+import sys
+import os
+dir_path = os.path.dirname(os.path.realpath(__file__))
+sys.path.extend([os.path.join(dir_path, "..")])
+
 from utils.experiments import add_fpath, run_experiment
 from utils.paths import experiments_3d_dataframe, experiments_3d_configs
 import pandas as pd

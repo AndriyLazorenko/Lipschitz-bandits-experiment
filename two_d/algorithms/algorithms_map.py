@@ -38,12 +38,25 @@ def get_algorithms(time_horizon: int,
                                                                  warmup=warmup_bayesian),
         "thompson_sampling": ThompsonSampling(time_horizon, batch_size, search_interval),
         "ucb": UCB(time_horizon, batch_size, search_interval),
-        "article": LBS(time_horizon, batch_size, search_interval)
+        "LBS": LBS(time_horizon, batch_size, search_interval)
     }
     for_ret = list()
     for algo in algorithms:
-        try:
-            for_ret.append(algo_map[algo])
-        except KeyError as err:
-            raise NotImplementedError(f"An algorithm {algo} is not implemented!")
+        if reward_type == "article":
+            if algo == "thompson_sampling":
+                print("Thompson sampling is bugged and doesn't work with article reward")
+            else:
+                append_algo(algo, algo_map, for_ret)
+        elif reward_type != "article":
+            if algo == "LBS":
+                print("Linear bid shading is only defined for reward from article")
+            else:
+                append_algo(algo, algo_map, for_ret)
     return for_ret
+
+
+def append_algo(algo: str, algo_map: dict, for_ret: list):
+    try:
+        for_ret.append(algo_map[algo])
+    except KeyError as err:
+        raise NotImplementedError(f"An algorithm {algo} is not implemented!")

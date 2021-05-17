@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import pareto
 from typing import Tuple
-import timer
+# from utils import timer
 
 
 class Rewards:
@@ -78,7 +78,7 @@ class Rewards:
         if self.reward_type == "triangular":
             return self.triangular_reward(arm)
         elif self.reward_type == "quadratic":
-            return self.rosenbrock_reward(arm)
+            return self.quadratic_reward(arm)
         elif self.reward_type == "article_LBS":
             return self.article_LBS_reward(arm, timestep)
         elif self.reward_type == "bukin":

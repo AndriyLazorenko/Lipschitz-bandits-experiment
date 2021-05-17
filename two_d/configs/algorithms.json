@@ -5,6 +5,7 @@
   "random",
   "epsilon_greedy",
   "bayesian_optimization",
+  "thompson_sampling",
   "ucb",
-  "article"
+  "LBS"
 ]
